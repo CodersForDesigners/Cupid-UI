@@ -94,7 +94,7 @@ $( document ).on( "submit", ".js_customer_form", async function ( event ) {
 			$feedbackMessage.html( `1 match found.` );
 		else
 			$feedbackMessage.html( `${ customerData.possible_persons.length } matches found.` );
-		let customerMarkup = renderCustomerData( customerData );
+		let customerMarkup = await renderCustomerData( customerData );
 		$( ".js_customer_information" ).html( customerMarkup );
 	}
 	// Reset and re-enable the form
@@ -157,7 +157,7 @@ async function queryCustomer ( data ) {
  * Returns markup on the customer
  *
  */
-function renderCustomerData ( data ) {
+async function renderCustomerData ( data ) {
 
 	let people;
 	if ( data.person )
@@ -165,48 +165,56 @@ function renderCustomerData ( data ) {
 	else
 		people = data.possible_persons;
 
-	let peopleMarkup = people.map( function ( person, _i ) {
+	let peopleMarkup = await Promise.all( people.map( async function ( person, _i ) {
 
 		let name = "";
-		if ( person.names )
-			name = `<div class="name small">${ person.names[ 0 ].display }</div>`;
+		if ( person.name )
+			name = `<div class="name small">${ person.name }</div>`;
 
 		let images = "";
-		if ( person.images )
-			images = person.images.map( image => `url( '${ image.url }' )` ).join( "," );
+		// let accessibleImages;
+		if ( person.images ) {
+			// accessibleImages = await Promise.all( person.images.map( function ( image ) {
+			// 		return __BFS.utils.isImageAccessible( image.url );
+			// } ) );
+			// accessibleImages = accessibleImages.filter( image => image );
+			images = person.images.map( image => `url( '${ image }' )` ).join( "," );
+		}
 
 		let phoneNumber = "";
-		if ( person.phones ) {
-			phoneNumber = `+${ person.phones[ 0 ].country_code }${ person.phones[ 0 ].number }`;
-			phoneNumber = `<div class="phone small"><span class="symbol">📞</span> ${ phoneNumber }</div>`
+		if ( person.phoneNumber ) {
+			phoneNumber = `<div class="phone small"><span class="symbol">📞</span> ${ person.phoneNumber }</div>`
 		}
 
 		let dob = "";
-		if ( person.dob )
+		if ( person.dateOfBirth )
 			dob = `
 				<div class="small data-point">
 					<div class="text-bold">Age:</div>
-					<div>${ person.dob.display.replace( /[^\d]/g, "" ) }</div>
+					<div>${ person.dateOfBirth }</div>
 				</div>
 			`;
 
 		let phoneNumbers = "";
-		if ( person.phones ) {
-			phoneNumbers = person.phones.map( phone => {
-				return `<div>${ phone.country_code }${ phone.number }</div>`;
+		if ( person.contact && person.contact.otherPhoneNumbers ) {
+			phoneNumbers = person.contact.otherPhoneNumbers.map( phone => {
+				return `<div>${ phone }</div>`;
 			} ).join( "" );
 			phoneNumbers = `
 				<div class="small data-point">
-					<div class="text-bold">Phone Numbers(es):</div>
+					<div class="text-bold">Phone Number(s):</div>
 					${ phoneNumbers }
 				</div>
 			`;
 		}
 
 		let emailAddresses = "";
-		if ( person.emails ) {
-			emailAddresses = person.emails.map( email => {
-				return `<div>${ email.address }</div>`;
+		let personEmailAddresses = [ ];
+		if ( person.emailAddress ) personEmailAddresses = [ person.emailAddress ];
+		if ( person.contact && person.contact.otherEmailAddresses ) {
+			personEmailAddresses = personEmailAddresses.concat( person.contact.otherEmailAddresses );
+			emailAddresses = personEmailAddresses.map( email => {
+				return `<div>${ email }</div>`;
 			} ).join( "" );
 			emailAddresses = `
 				<div class="small data-point">
@@ -217,9 +225,9 @@ function renderCustomerData ( data ) {
 		}
 
 		let onTheInternet = "";
-		if ( person.urls ) {
-			onTheInternet = person.urls.map( place => `
-				<a class="place-on-web small" href="${ place.url }" target="_blank">${ place[ "@name" ] || place[ "@domain" ] || "(unknown)" }</a>
+		if ( person.onTheInteret ) {
+			onTheInternet = person.onTheInteret.map( place => `
+				<a class="place-on-web small" href="${ place.url }" target="_blank">${ place.name }</a>
 			` ).join( "" );
 			onTheInternet = `
 				<div class="section text-left">
@@ -233,9 +241,9 @@ function renderCustomerData ( data ) {
 		}
 
 		let career = ""
-		if ( person.jobs ) {
-			career = "<ul class='career'>" + person.jobs.map( job => `<li class="small">
-				${ job.display }
+		if ( person.career ) {
+			career = "<ul class='career'>" + person.career.map( job => `<li class="small">
+				${ job }
 			</li>` ).join( "" ) + "</ul>";
 			career = `
 				<div class="section text-left">
@@ -247,9 +255,9 @@ function renderCustomerData ( data ) {
 		}
 
 		let education = ""
-		if ( person.educations ) {
-			education = "<ul class='career'>" + person.educations.map( education => `<li class="small">
-				${ educations.display }
+		if ( person.education ) {
+			education = "<ul class='career'>" + person.education.map( phase => `<li class="small">
+				${ phase }
 			</li>` ).join( "" ) + "</ul>";
 			education = `
 				<div class="section text-left">
@@ -260,6 +268,19 @@ function renderCustomerData ( data ) {
 			`;
 		}
 
+		let gallery = ""
+		if ( person.images ) {
+			gallery = "<ul class='gallery'>" + person.images.map( image => `<li><a href="${ image }" target="_blank"><img src="${ image }"></a></li>` ).join( "" ) + "</ul>";
+			gallery = `
+				<div class="section">
+					<div class="h6">Gallery</div>
+					<hr>
+					${ gallery }
+				</div>
+			`;
+		}
+
+
 		let markup = `
 			<div class="customer js_customer_card">
 				<div class="summary js_summary">
@@ -268,7 +289,7 @@ function renderCustomerData ( data ) {
 					<div class="basic text-left">
 						${ name }
 						${ phoneNumber }
-						${ person.emails && ( "<div class='email small'><span>✉</span> " + person.emails[ 0 ].address + "</div>" ) || "" }
+						${ personEmailAddresses && ( "<div class='email small'><span>✉</span> " + personEmailAddresses[ 0 ] + "</div>" ) || "" }
 					</div>
 				</div>
 				<div class="more-details js_more_details">
@@ -282,13 +303,14 @@ function renderCustomerData ( data ) {
 					</div>
 					${ career }
 					${ education }
+					${ gallery }
 				</div>
 			</div>
 		`;
 
-		return markup;
+		return Promise.resolve( markup );
 
-	} );
+	} ) );
 
 	return peopleMarkup.join( "" );
 

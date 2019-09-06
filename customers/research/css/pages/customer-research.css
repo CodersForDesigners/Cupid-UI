@@ -132,6 +132,22 @@ form button:not(:disabled):hover {
 	margin: 0 0 0.5rem;
 }
 
+	/* Gallery */
+	.customer-section .customer .more-details .section .gallery {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		list-style: none;
+		padding: 0;
+	}
+	.customer-section .customer .more-details .section .gallery img {
+		height: auto;
+		max-width: 100%;
+	}
+	.customer-section .customer .more-details .section .gallery li {
+		width: 33%;
+	}
+
 @media ( min-width: 640px ) {
 
 	.customer-section .customer .summary .picture {
